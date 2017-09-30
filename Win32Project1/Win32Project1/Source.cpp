@@ -14,6 +14,13 @@ struct Circle
 	int X, Y, Radius;
 };
 
+Scalar red;
+float highestRadius;
+RNG rng(12345);
+
+Mat imgTmp;
+Mat imgLines;
+
 CascadeClassifier _faceCascade;
 String _windowName = "Unity OpenCV Interop Sample";
 VideoCapture _capture;
@@ -32,6 +39,47 @@ extern "C" int __declspec(dllexport) __stdcall  Init(int& outCameraWidth, int& o
 
 	outCameraWidth = _capture.get(CAP_PROP_FRAME_WIDTH);
 	outCameraHeight = _capture.get(CAP_PROP_FRAME_HEIGHT);
+
+	//============================================================================
+
+	red = Scalar(0, 0, 255);
+
+	if (!_capture.isOpened())  // if not success, exit program
+	{
+		cout << "Cannot open the web cam" << endl;
+		return -1;
+	}
+
+	//namedWindow("Control", CV_WINDOW_AUTOSIZE); //create a window called "Control"
+
+	int iLowH = 22;
+	int iHighH = 156;
+
+	int iLowS = 30;
+	int iHighS = 255;
+
+	int iLowV = 203;
+	int iHighV = 255;
+
+	//Create trackbars in "Control" window
+	/*createTrackbar("LowH", "Control", &iLowH, 179); //Hue (0 - 179)
+	createTrackbar("HighH", "Control", &iHighH, 179);
+
+	createTrackbar("LowS", "Control", &iLowS, 255); //Saturation (0 - 255)
+	createTrackbar("HighS", "Control", &iHighS, 255);
+
+	createTrackbar("LowV", "Control", &iLowV, 255);//Value (0 - 255)
+	createTrackbar("HighV", "Control", &iHighV, 255);*/
+
+	int iLastX = -1;
+	int iLastY = -1;
+
+	//Capture a temporary image from the camera
+	imgTmp;
+	_capture.read(imgTmp);
+
+	//Create a black image with the size as the camera output
+	imgLines = Mat::zeros(imgTmp.size(), CV_8UC3);;
 
 	return 0;
 }
@@ -53,31 +101,7 @@ extern "C" void __declspec(dllexport) __stdcall Detect(Circle* outFaces, int max
 	if (frame.empty())
 		return;
 
-	std::vector<Rect> faces;
-	// Convert the frame to grayscale for cascade detection.
-	Mat grayscaleFrame;
-	cvtColor(frame, grayscaleFrame, COLOR_BGR2GRAY);
-	Mat resizedGray;
-	// Scale down for better performance.
-	resize(grayscaleFrame, resizedGray, Size(frame.cols / _scale, frame.rows / _scale));
-	equalizeHist(resizedGray, resizedGray);
-
-	// Detect faces.
-	_faceCascade.detectMultiScale(resizedGray, faces);
-
-	// Draw faces.
-	for (size_t i = 0; i < faces.size(); i++)
-	{
-		Point center(_scale * (faces[i].x + faces[i].width / 2), _scale * (faces[i].y + faces[i].height / 2));
-		ellipse(frame, center, Size(_scale * faces[i].width / 2, _scale * faces[i].height / 2), 0, 0, 360, Scalar(0, 0, 255), 4, 8, 0);
-
-		// Send to application.
-		outFaces[i] = Circle(faces[i].x, faces[i].y, faces[i].width / 2);
-		outDetectedFacesCount++;
-
-		if (outDetectedFacesCount == maxOutFacesCount)
-			break;
-	}
+	outFaces[0] = Circle(99, 99, 99);
 
 	// Display debug output.
 	//imshow(_windowName, frame);
