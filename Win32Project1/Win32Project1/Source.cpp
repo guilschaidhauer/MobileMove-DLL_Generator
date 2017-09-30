@@ -64,7 +64,7 @@ extern "C" int __declspec(dllexport) __stdcall  Init(int& outCameraWidth, int& o
 
 	//namedWindow("Control", CV_WINDOW_AUTOSIZE); //create a window called "Control"
 
-	iLowH = 22;
+	iLowH = 13;
 	iHighH = 156;
 
 	iLowS = 30;
@@ -175,7 +175,7 @@ extern "C" void __declspec(dllexport) __stdcall Detect(Circle* outFaces, int max
 		{
 			circle(imgOriginal, center[i], (int)radius[i], red, 4, 8, 0);
 			circle(imgOriginal, center[i], 5, red, -1);
-			outFaces[i] = Circle(center[i].x, center[i].x, radius[i]);
+			outFaces[i] = Circle(center[i].x, center[i].y, radius[i]);
 		}
 	}
 
