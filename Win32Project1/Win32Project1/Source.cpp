@@ -21,6 +21,18 @@ RNG rng(12345);
 Mat imgTmp;
 Mat imgLines;
 
+int iLowH;
+int iHighH;
+
+int iLowS;
+int iHighS;
+
+int iLowV;
+int iHighV;
+
+int iLastX;
+int iLastY;
+
 CascadeClassifier _faceCascade;
 String _windowName = "Unity OpenCV Interop Sample";
 VideoCapture _capture;
@@ -52,14 +64,14 @@ extern "C" int __declspec(dllexport) __stdcall  Init(int& outCameraWidth, int& o
 
 	//namedWindow("Control", CV_WINDOW_AUTOSIZE); //create a window called "Control"
 
-	int iLowH = 22;
-	int iHighH = 156;
+	iLowH = 22;
+	iHighH = 156;
 
-	int iLowS = 30;
-	int iHighS = 255;
+	iLowS = 30;
+	iHighS = 255;
 
-	int iLowV = 203;
-	int iHighV = 255;
+	iLowV = 203;
+	iHighV = 255;
 
 	//Create trackbars in "Control" window
 	/*createTrackbar("LowH", "Control", &iLowH, 179); //Hue (0 - 179)
@@ -71,8 +83,8 @@ extern "C" int __declspec(dllexport) __stdcall  Init(int& outCameraWidth, int& o
 	createTrackbar("LowV", "Control", &iLowV, 255);//Value (0 - 255)
 	createTrackbar("HighV", "Control", &iHighV, 255);*/
 
-	int iLastX = -1;
-	int iLastY = -1;
+	iLastX = -1;
+	iLastY = -1;
 
 	//Capture a temporary image from the camera
 	imgTmp;
@@ -101,7 +113,73 @@ extern "C" void __declspec(dllexport) __stdcall Detect(Circle* outFaces, int max
 	if (frame.empty())
 		return;
 
-	outFaces[0] = Circle(99, 99, 99);
+	Mat imgOriginal;
+
+	bool bSuccess = _capture.read(imgOriginal); // read a new frame from video
+
+
+	if (!bSuccess) //if not success, break loop
+	{
+		cout << "Cannot read a frame from video stream" << endl;
+		return;
+	}
+
+	Mat imgHSV;
+	cvtColor(imgOriginal, imgHSV, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
+
+	Mat imgThresholded;
+	inRange(imgHSV, Scalar(iLowH, iLowS, iLowV), Scalar(iHighH, iHighS, iHighV), imgThresholded); //Threshold the image //morphological opening (removes small objects from the foreground)
+
+	erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+	dilate(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+
+	//morphological closing (removes small holes from the foreground)
+	dilate(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+	erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+
+	//Calculate the moments of the thresholded image
+	Moments oMoments = moments(imgThresholded);
+
+	double dM01 = oMoments.m01;
+	double dM10 = oMoments.m10;
+	double dArea = oMoments.m00;
+
+	//imshow("Thresholded Image", imgThresholded); //show the thresholded image
+
+	vector<vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	findContours(imgThresholded, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
+
+	vector<vector<Point> > contours_poly(contours.size());
+	vector<Rect> boundRect(contours.size());
+	vector<Point2f>center(contours.size());
+	vector<float>radius(contours.size());
+
+	for (int i = 0; i < contours.size(); i++)
+	{
+		if (contours[i].size() > 100)
+		{
+			approxPolyDP(Mat(contours[i]), contours_poly[i], 3, true);
+			boundRect[i] = boundingRect(Mat(contours_poly[i]));
+			minEnclosingCircle((Mat)contours_poly[i], center[i], radius[i]);
+		}
+	}
+
+	//highestRadius = getHighestFloat(&radius);
+
+	/// Draw polygonal contour + bonding rects + circles
+	Mat drawing = Mat::zeros(imgThresholded.size(), CV_8UC3);
+	for (int i = 0; i< contours.size(); i++)
+	{
+		if (contours[i].size() > 100)
+		{
+			circle(imgOriginal, center[i], (int)radius[i], red, 4, 8, 0);
+			circle(imgOriginal, center[i], 5, red, -1);
+			outFaces[i] = Circle(center[i].x, center[i].x, radius[i]);
+		}
+	}
+
+	//outFaces[0] = Circle(99, 99, 99);
 
 	// Display debug output.
 	//imshow(_windowName, frame);
