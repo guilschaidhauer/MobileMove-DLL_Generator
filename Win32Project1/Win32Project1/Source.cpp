@@ -108,7 +108,7 @@ extern "C" void __declspec(dllexport) __stdcall SetScale(int scale)
 
 extern "C" void __declspec(dllexport) __stdcall Detect(Circle* outFaces, int maxOutFacesCount, int& outDetectedFacesCount)
 {
-	Mat frame;
+	/*Mat frame;
 	_capture >> frame;
 	if (frame.empty())
 		return;
@@ -179,7 +179,9 @@ extern "C" void __declspec(dllexport) __stdcall Detect(Circle* outFaces, int max
 		}
 	}
 
-	//outFaces[0] = Circle(99, 99, 99);
+	//outFaces[0] = Circle(99, 99, 99);*/
+
+	outFaces[0] = Circle(rand() % 50 + 150, rand() % 50 + 150, 99);
 
 	// Display debug output.
 	//imshow(_windowName, frame);
