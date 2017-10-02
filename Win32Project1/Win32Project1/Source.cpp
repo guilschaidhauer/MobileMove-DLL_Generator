@@ -1,11 +1,23 @@
-#include "opencv2/objdetect.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/imgproc.hpp"
 #include <iostream>
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winsock2.h>
+#include <string>
 
 using namespace std;
-using namespace cv;
+
+#pragma comment(lib,"ws2_32.lib") //Winsock Library
+#define BUFLEN 512  //Max length of buffer
+#define PORT 7777   //The port on which to listen for incoming data
+#pragma comment(lib,"ws2_32.lib") //Winsock Library
+#define SERVER "192.168.43.227"  //ip address of udp server
+
+SOCKET s;
+struct sockaddr_in server, si_other;
+int slen, recv_len;
+char buf[BUFLEN];
+WSADATA wsa;
 
 // Declare structure to be used to pass data from C++ to Mono.
 struct Circle
@@ -14,175 +26,96 @@ struct Circle
 	int X, Y, Radius;
 };
 
-Scalar red;
-float highestRadius;
-RNG rng(12345);
-
-Mat imgTmp;
-Mat imgLines;
-
-int iLowH;
-int iHighH;
-
-int iLowS;
-int iHighS;
-
-int iLowV;
-int iHighV;
-
-int iLastX;
-int iLastY;
-
-CascadeClassifier _faceCascade;
-String _windowName = "Unity OpenCV Interop Sample";
-VideoCapture _capture;
-int _scale = 1;
-
-extern "C" int __declspec(dllexport) __stdcall  Init(int& outCameraWidth, int& outCameraHeight)
+extern "C" int __declspec(dllexport) __stdcall  Init()
 {
-	// Load LBP face cascade.
-	if (!_faceCascade.load("lbpcascade_frontalface.xml"))
-		return -1;
+	slen = sizeof(si_other);
 
-	// Open the stream.
-	_capture.open(0);
-	if (!_capture.isOpened())
-		return -2;
-
-	outCameraWidth = _capture.get(CAP_PROP_FRAME_WIDTH);
-	outCameraHeight = _capture.get(CAP_PROP_FRAME_HEIGHT);
-
-	//============================================================================
-
-	red = Scalar(0, 0, 255);
-
-	if (!_capture.isOpened())  // if not success, exit program
+	//Initialise winsock
+	printf("\nInitialising Winsock...");
+	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
 	{
-		cout << "Cannot open the web cam" << endl;
-		return -1;
+		printf("Failed. Error Code : %d", WSAGetLastError());
+		exit(EXIT_FAILURE);
 	}
+	printf("Initialised.\n");
 
-	//namedWindow("Control", CV_WINDOW_AUTOSIZE); //create a window called "Control"
+	//Create a socket
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
+	{
+		printf("Could not create socket : %d", WSAGetLastError());
+	}
+	printf("Socket created.\n");
 
-	iLowH = 13;
-	iHighH = 156;
+	//Prepare the sockaddr_in structure
+	server.sin_family = AF_INET;
+	server.sin_addr.s_addr = INADDR_ANY;
+	server.sin_port = htons(PORT);
 
-	iLowS = 30;
-	iHighS = 255;
-
-	iLowV = 203;
-	iHighV = 255;
-
-	//Create trackbars in "Control" window
-	/*createTrackbar("LowH", "Control", &iLowH, 179); //Hue (0 - 179)
-	createTrackbar("HighH", "Control", &iHighH, 179);
-
-	createTrackbar("LowS", "Control", &iLowS, 255); //Saturation (0 - 255)
-	createTrackbar("HighS", "Control", &iHighS, 255);
-
-	createTrackbar("LowV", "Control", &iLowV, 255);//Value (0 - 255)
-	createTrackbar("HighV", "Control", &iHighV, 255);*/
-
-	iLastX = -1;
-	iLastY = -1;
-
-	//Capture a temporary image from the camera
-	imgTmp;
-	_capture.read(imgTmp);
-
-	//Create a black image with the size as the camera output
-	imgLines = Mat::zeros(imgTmp.size(), CV_8UC3);;
+	//Bind
+	if (bind(s, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR)
+	{
+		printf("Bind failed with error code : %d", WSAGetLastError());
+		exit(EXIT_FAILURE);
+	}
+	puts("Bind done");
 
 	return 0;
 }
 
 extern "C" void __declspec(dllexport) __stdcall  Close()
 {
-	_capture.release();
+	closesocket(s);
+	WSACleanup();
 }
 
-extern "C" void __declspec(dllexport) __stdcall SetScale(int scale)
+void parseString(string s, Circle *circle)
 {
-	_scale = scale;
+	std::string delimiter = "-";
+	bool firstLoop = false;
+	size_t pos = 0;
+	std::string token;
+	while ((pos = s.find(delimiter)) != std::string::npos) {
+		token = s.substr(0, pos);
+		if (!firstLoop)
+		{
+			circle->X = std::stof(token, nullptr);
+			firstLoop = true;
+		}
+		else
+		{
+			circle->Y = std::stof(token, nullptr);
+		}
+		s.erase(0, pos + delimiter.length());
+	}
+
+	circle->Radius = std::stof(s, nullptr);
 }
 
-extern "C" void __declspec(dllexport) __stdcall Detect(Circle* outFaces, int maxOutFacesCount, int& outDetectedFacesCount)
+extern "C" void __declspec(dllexport) __stdcall RunServer(Circle* outFaces)
 {
-	/*Mat frame;
-	_capture >> frame;
-	if (frame.empty())
-		return;
+	printf("Waiting for data...");
+	fflush(stdout);
 
-	Mat imgOriginal;
+	//clear the buffer by filling null, it might have previously received data
+	memset(buf, '\0', BUFLEN);
 
-	bool bSuccess = _capture.read(imgOriginal); // read a new frame from video
-
-
-	if (!bSuccess) //if not success, break loop
+	//try to receive some data, this is a blocking call
+	if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR)
 	{
-		cout << "Cannot read a frame from video stream" << endl;
-		return;
+		printf("recvfrom() failed with error code : %d", WSAGetLastError());
+		exit(EXIT_FAILURE);
 	}
 
-	Mat imgHSV;
-	cvtColor(imgOriginal, imgHSV, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
+	//print details of the client/peer and the data received
+	printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+	printf("Data: %s\n", buf);
+	string str(buf);
+	parseString(str, &outFaces[0]);
 
-	Mat imgThresholded;
-	inRange(imgHSV, Scalar(iLowH, iLowS, iLowV), Scalar(iHighH, iHighS, iHighV), imgThresholded); //Threshold the image //morphological opening (removes small objects from the foreground)
-
-	erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-	dilate(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-
-	//morphological closing (removes small holes from the foreground)
-	dilate(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-	erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-
-	//Calculate the moments of the thresholded image
-	Moments oMoments = moments(imgThresholded);
-
-	double dM01 = oMoments.m01;
-	double dM10 = oMoments.m10;
-	double dArea = oMoments.m00;
-
-	//imshow("Thresholded Image", imgThresholded); //show the thresholded image
-
-	vector<vector<Point> > contours;
-	vector<Vec4i> hierarchy;
-	findContours(imgThresholded, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
-
-	vector<vector<Point> > contours_poly(contours.size());
-	vector<Rect> boundRect(contours.size());
-	vector<Point2f>center(contours.size());
-	vector<float>radius(contours.size());
-
-	for (int i = 0; i < contours.size(); i++)
+	//now reply the client with the same data
+	if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
 	{
-		if (contours[i].size() > 100)
-		{
-			approxPolyDP(Mat(contours[i]), contours_poly[i], 3, true);
-			boundRect[i] = boundingRect(Mat(contours_poly[i]));
-			minEnclosingCircle((Mat)contours_poly[i], center[i], radius[i]);
-		}
+		printf("sendto() failed with error code : %d", WSAGetLastError());
+		exit(EXIT_FAILURE);
 	}
-
-	//highestRadius = getHighestFloat(&radius);
-
-	/// Draw polygonal contour + bonding rects + circles
-	Mat drawing = Mat::zeros(imgThresholded.size(), CV_8UC3);
-	for (int i = 0; i< contours.size(); i++)
-	{
-		if (contours[i].size() > 100)
-		{
-			circle(imgOriginal, center[i], (int)radius[i], red, 4, 8, 0);
-			circle(imgOriginal, center[i], 5, red, -1);
-			outFaces[i] = Circle(center[i].x, center[i].y, radius[i]);
-		}
-	}
-
-	//outFaces[0] = Circle(99, 99, 99);*/
-
-	outFaces[0] = Circle(rand() % 50 + 150, rand() % 50 + 150, 99);
-
-	// Display debug output.
-	//imshow(_windowName, frame);
 }
