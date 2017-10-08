@@ -113,9 +113,9 @@ extern "C" void __declspec(dllexport) __stdcall RunServer(Circle* outFaces)
 	parseString(str, &outFaces[0]);
 
 	//now reply the client with the same data
-	if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
+	/*if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
 	{
 		printf("sendto() failed with error code : %d", WSAGetLastError());
 		exit(EXIT_FAILURE);
-	}
+	}*/
 }
