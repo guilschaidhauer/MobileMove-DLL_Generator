@@ -93,7 +93,7 @@ void parseString(string s, Circle *circle)
 
 extern "C" void __declspec(dllexport) __stdcall RunServer(Circle* outFaces)
 {
-	printf("Waiting for data...");
+	//printf("Waiting for data...");
 	fflush(stdout);
 
 	//clear the buffer by filling null, it might have previously received data
@@ -102,15 +102,20 @@ extern "C" void __declspec(dllexport) __stdcall RunServer(Circle* outFaces)
 	//try to receive some data, this is a blocking call
 	if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == SOCKET_ERROR)
 	{
-		printf("recvfrom() failed with error code : %d", WSAGetLastError());
-		exit(EXIT_FAILURE);
+		//printf("recvfrom() failed with error code : %d", WSAGetLastError());
+		//exit(EXIT_FAILURE);
+	}
+	else
+	{
+		string str(buf);
+		parseString(str, &outFaces[0]);
 	}
 
 	//print details of the client/peer and the data received
-	printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-	printf("Data: %s\n", buf);
-	string str(buf);
-	parseString(str, &outFaces[0]);
+	//printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+	//printf("Data: %s\n", buf);
+	//string str(buf);
+	//parseString(str, &outFaces[0]);
 
 	//now reply the client with the same data
 	/*if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
