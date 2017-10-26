@@ -22,8 +22,8 @@ WSADATA wsa;
 // Declare structure to be used to pass data from C++ to Mono.
 struct Circle
 {
-	Circle(int x, int y, int radius) : X(x), Y(y), Radius(radius) {}
-	int X, Y, Radius;
+	Circle(int x, int y, int z, int radius) : X(x), Y(y), Z(z), Radius(radius) {}
+	int X, Y, Z, Radius;
 };
 
 extern "C" int __declspec(dllexport) __stdcall  Init()
@@ -109,6 +109,7 @@ extern "C" void __declspec(dllexport) __stdcall RunServer(Circle* outFaces)
 	{
 		string str(buf);
 		parseString(str, &outFaces[0]);
+		outFaces[0].Z = 99;
 	}
 
 	//print details of the client/peer and the data received
