@@ -11,7 +11,7 @@ using namespace std;
 #define BUFLEN 512  //Max length of buffer
 #define PORT 7777   //The port on which to listen for incoming data
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
-#define SERVER "192.168.43.227"  //ip address of udp server
+#define SERVER "192.168.2.193"  //ip address of udp server
 
 SOCKET s;
 struct sockaddr_in server, si_other;
@@ -70,7 +70,7 @@ extern "C" void __declspec(dllexport) __stdcall  Close()
 
 void parseString(string s, Circle *circle)
 {
-	std::string delimiter = "-";
+	std::string delimiter = "|";
 	bool firstLoop = false;
 	size_t pos = 0;
 	std::string token;
