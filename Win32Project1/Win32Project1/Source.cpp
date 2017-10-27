@@ -71,21 +71,25 @@ extern "C" void __declspec(dllexport) __stdcall  Close()
 void parseString(string s, Circle *circle)
 {
 	std::string delimiter = "|";
-	bool firstLoop = false;
+	int loopNum = 1;
 	size_t pos = 0;
 	std::string token;
 	while ((pos = s.find(delimiter)) != std::string::npos) {
 		token = s.substr(0, pos);
-		if (!firstLoop)
+		if (loopNum == 1)
 		{
 			circle->X = std::stof(token, nullptr);
-			firstLoop = true;
 		}
-		else
+		else if (loopNum == 2)
 		{
 			circle->Y = std::stof(token, nullptr);
 		}
+		else if (loopNum == 3)
+		{
+			circle->Z = std::stof(token, nullptr);
+		}
 		s.erase(0, pos + delimiter.length());
+		loopNum++;
 	}
 
 	circle->Radius = std::stof(s, nullptr);
@@ -109,7 +113,7 @@ extern "C" void __declspec(dllexport) __stdcall RunServer(Circle* outFaces)
 	{
 		string str(buf);
 		parseString(str, &outFaces[0]);
-		outFaces[0].Z = 99;
+		//outFaces[0].Z = 99;
 	}
 
 	//print details of the client/peer and the data received
