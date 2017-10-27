@@ -22,8 +22,8 @@ WSADATA wsa;
 // Declare structure to be used to pass data from C++ to Mono.
 struct Circle
 {
-	Circle(float x, float y, float z, float radius) : X(x), Y(y), Z(z), Radius(radius) {}
-	float X, Y, Z, Radius;
+	Circle(int x, int y, int radius) : X(x), Y(y), Radius(radius) {}
+	int X, Y, Radius;
 };
 
 extern "C" int __declspec(dllexport) __stdcall  Init()
@@ -71,25 +71,21 @@ extern "C" void __declspec(dllexport) __stdcall  Close()
 void parseString(string s, Circle *circle)
 {
 	std::string delimiter = "|";
-	int loopNum = 1;
+	bool firstLoop = false;
 	size_t pos = 0;
 	std::string token;
 	while ((pos = s.find(delimiter)) != std::string::npos) {
 		token = s.substr(0, pos);
-		if (loopNum == 1)
+		if (!firstLoop)
 		{
 			circle->X = std::stof(token, nullptr);
+			firstLoop = true;
 		}
-		else if (loopNum == 2)
+		else
 		{
 			circle->Y = std::stof(token, nullptr);
 		}
-		else if (loopNum == 3)
-		{
-			circle->Z = std::stof(token, nullptr);
-		}
 		s.erase(0, pos + delimiter.length());
-		loopNum++;
 	}
 
 	circle->Radius = std::stof(s, nullptr);
