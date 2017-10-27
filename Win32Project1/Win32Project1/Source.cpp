@@ -22,8 +22,8 @@ WSADATA wsa;
 // Declare structure to be used to pass data from C++ to Mono.
 struct Circle
 {
-	Circle(int x, int y, int z, int radius) : X(x), Y(y), Z(z), Radius(radius) {}
-	int X, Y, Z, Radius;
+	Circle(float x, float y, float z, float radius) : X(x), Y(y), Z(z), Radius(radius) {}
+	float X, Y, Z, Radius;
 };
 
 extern "C" int __declspec(dllexport) __stdcall  Init()
