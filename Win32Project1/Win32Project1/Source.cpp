@@ -9,7 +9,7 @@ using namespace std;
 
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
 #define BUFLEN 512  //Max length of buffer
-#define PORT 7777   //The port on which to listen for incoming data
+#define PORT 8888   //The port on which to listen for incoming data
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
 #define SERVER "192.168.2.193"  //ip address of udp server
 
